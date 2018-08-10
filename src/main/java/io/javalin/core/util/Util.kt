@@ -11,9 +11,12 @@ import io.javalin.Javalin
 import io.javalin.staticfiles.Location
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import sun.misc.Unsafe
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.URL
+import java.security.AccessController
+import java.security.PrivilegedExceptionAction
 import java.util.*
 import java.util.zip.Adler32
 import java.util.zip.CheckedInputStream
@@ -28,6 +31,19 @@ object Util {
 
     @JvmStatic
     fun prefixContextPath(contextPath: String, path: String) = if (path == "*") path else ("$contextPath/$path").replace("/{2,}".toRegex(), "/")
+
+    internal fun getTheUnsafe(): Unsafe {
+        return try {
+            AccessController.doPrivileged(PrivilegedExceptionAction {
+                val theUnsafe = sun.misc.Unsafe::class.java.getDeclaredField("theUnsafe")
+                theUnsafe.isAccessible = true
+                theUnsafe.get(null) as Unsafe
+            })
+        } catch (any: Exception) {
+            log.error("Could not get instance of {}", Unsafe::class.java.canonicalName)
+            throw any
+        }
+    }
 
     private fun classExists(className: String) = try {
         Class.forName(className)
